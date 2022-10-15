@@ -1,0 +1,197 @@
+DEFINE Column USING FloorAmount AND elevatorAmount
+
+    FloorAmount: FloorAmount
+    ElevatorAmount: ElevatorAmount
+    elevatorList: SET to EMPTY ARRAY   
+    FloorButtonList: SET to EMPTY ARRAY   
+    CREATE createElevatorList USING elevatorAmount 
+    CREATE createFloorButtonList USING FloorAmount 
+
+
+    SEQUENCE createFloorButtonList USING floorAmount
+
+        SET first button of FloorButtonList TO 1 AND "UP"   
+        SET last button  of FloorButtonList TO floorAmount AND "DOWN"
+        SET index to 2
+        
+        FOR floorAmount                               
+            INIT newButton TO INSTANTIATE callButon with index AND "UP" TO FloorButtonList 
+            ADD newButton TO FloorButtonList
+            INIT newButton TO INSTANTIATE callButon with index AND "Down" TO FloorButtonList 
+            ADD newButton TO FloorButtonList
+        ENDFOR
+    ENDSEQUENCE
+
+    SEQUENCE createElevatorList USING elevatorAmount 
+        SET index TO 1
+        FOR elevatorAmount 
+            INIT newElevator TO INSTANTIATE Elevator WITH index AND "IDLE"  AND "close" 
+            ADD newElevator TO elevatorList 
+            INCREMENT index
+        ENDFOR          
+    END SEQUENCE
+
+    SEQUENCE requestElevator USING requestedFloor AND direction
+        CALL getBestElevator WITH requestedFoor AND direction RETURNING elevator
+        ADD  requestedFloor TO requestList
+        CALL sortList WITH requestList 
+        CALL moveElevator WITH elevator AND requestedFloor
+        CALL openDoors WITH elevator
+        CALL updateList with requestedFloor
+        RETURN elevator
+    ENDSEQUENCE 
+
+    SEQUENCE requestFloor USING elevator AND requestedFloor
+        CALL getBestElevator WITH requestedFoor AND direction RETURNING elevator
+        ADD  requestedFloor TO requestList
+        CALL sortList WITH requestList 
+        CALL moveElevator WITH requestedFloor
+    ENDSEQUENCE 
+    
+    SEQUENCE bestElevator USING requestedFloor AND direction 
+    SET index TO 0
+    SET bestFit TO null
+    SET bestDistance TO 11
+    SET nearestIdle TO null
+    FOR elavatorList [index] length GREATER THAN index
+        THEN
+        SET Elevator TO elevator[index]
+        SET Distance TO MATH.ABS(requestedFloor - elevator.postion)
+        DISPLAY id AND Position AND DIRECTION AND status
+    END FOR
+
+        IF requestedFloor EQUAL elevator.position AND elavator.status EQUAL "idle" OR elevator.status EQUAL "stopped"
+            THEN
+                SET bestFit TO elevator
+        END IF
+        ELSE IF elavator.direction EQUAL direction AND best distance GREATER THAN OR EQUAL distance
+            THEN
+                SET bestFit TO elevator
+                SET bestDistance TO distance
+            ENDIF
+        ENDIF
+    ENDSEQUENCE
+ENDDEFINE //Column
+
+DEFINE elevator USING direction AND Position AND status AND floorAmount AND id
+
+    id: id
+    status: status 
+    position: position
+    direction: SET TO none by default 'can be up down or none'
+    requestList SET to EMPTY ARRAY  
+    PanelButtonList SET to EMPTY ARRAY   
+    
+    CALL createElevatorPanelButtonList USING floorAmount of column
+
+    SEQUENCE createElevatorPanelButtonList USING floorAmount  
+        SET index TO 1
+        FOR floorAmount   
+            INIT newButton TO INSTANTIATE callButton WITH index  AND "notPressed"
+            ADD newButton TO ElevatorPanelButtonList
+            INCREMENT index  
+        ENDFOR         
+    ENDSEQUENCE
+
+    SEQUENCE moveElevator WITH requestedFloor
+        WHILE requestList GREATER THAN 0
+            IF requestedFloor EQUAL Position
+                THEN
+                    SET Status TO "Stopped"
+                    DISPLAY id AND STATUS AND DIRECTION
+            CALL openDoor
+            CALL requestList.shift
+
+            ELSE IF requestedFloor GREATER THAN Position
+                THEN 
+                    SET Status TO "Moving"
+                    SET Direction TO "Up"
+                    DISPLAY id AND STATUS AND DIRECTION
+                ENDIF
+            CALL moveUp USING requestedFloor
+            SET status TO "Stopped"
+            DISPLAY id AND Position AND Status
+            CALL OpenDoor
+            CALL requestList.shift
+            ENDIF
+
+            ELSE IF requestedFloor LESS THAN Position
+                THEN
+                    SET status TO "moving"
+                    SET direction TO "down"
+                    DISPLAY id AND STATUS AND DIRECTION
+                    CALL moveDown USING requestedFloor
+                    SET status TO "Stopped"
+                    DISPLAY id AND Position AND Status
+                    CALL OpenDoor
+                    CALL requestList.shift
+                ENDIF
+            ENDIF
+        ENDWHILE
+
+        IF requestList EQUAL 0
+            THEN
+                SET status TO "idle"
+            ENDIF
+        ENDIF
+    ENDSEQUENCE
+
+    SEQUENCE MoveUp USING requestedFloor 
+        WHILE Position NOT EQUAL requestedFloor        
+            THEN
+            SET position TO += 1      
+            DISPLAY Position  
+    ENDSEQUENCE
+
+    SEQUENCE MoveDown USING requestedFloor         
+        WHILE Position NOT EQUAL requestedFloor        
+            THEN
+            SET position TO -= 1      
+            DISPLAY Position     
+    ENDSEQUENCE
+
+    SEQUENCE manageRequestList
+        IF direction EQUAL "up"
+            THEN 
+            CALL requestList.sort
+            ENDIF
+        ELSE IF direction EQUAL "down"
+            THEN
+            CALL requestList.sort
+            CALL requestList.reverse
+            ENDIF
+        ENDIF                   
+    ENDSEQUENCE
+
+    SEQUENCE OpenDoor
+        DISPLAY "Open door"             
+    ENDSEQUENCE
+
+    SEQUENCE closeDoor
+        DISPLAY "Close door"            
+    ENDSEQUENCE   
+
+    SEQUENCE requestLanding USING requestlanding 
+        ADD  requestlanding TO requestlandingList
+        CALL sortList WITH requestlandingList
+        CALL closeDoors WITH elevator
+        CALL moveElevator WITH elevator AND requestlanding
+        CALL openDoors WITH elevator
+        CALL updateList with requestlanding
+    ENDSEQUENCE 
+ENDDEFINE //Elevator
+
+DEFINE PanelButton USING destination
+    destination: destination
+ENDDEFINE //PanelButton
+
+DEFINE FloorButton USING direction, NumFloor
+    NumFloor: NumFloor
+    Direction: Direction
+ENDDEFINE //FloorButton
+
+DEFINE Door USING id, status
+    SET door TO close
+    SET status TO status
+ENDDEFINE //Door
+
